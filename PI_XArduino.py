@@ -9,6 +9,7 @@ from XPLMProcessing import *
 from XPLMDataAccess import *
 from XPLMUtilities import *
 from XPLMPlanes import *
+from XPLMPlugin import *
 
 import serial
 import sys
@@ -65,10 +66,13 @@ class PythonInterface:
 			self.KEY_SWITCH8 : self.OFFSET_SWITCH8,
 		}
 		
+		self.commands = {}
 		self.datarefs = {}
 		self.offsetToButton = {}
+		self.lastState = {}
 		for i in self.buttonToOffset:
 			self.offsetToButton[self.buttonToOffset[i]] = i
+			self.lastState[self.buttonToOffset[i]] = 0
 
 		try:
 			self.s = serial.Serial(10, 9600, timeout=0)
@@ -84,7 +88,7 @@ class PythonInterface:
 			
 		return self.Name, self.Sig, self.Desc
 	
-	def config(self, startup = False):
+	def config(self):
 		plane, planePath = XPLMGetNthAircraftModel(0)
 		
 		config = ConfigParser.RawConfigParser()
@@ -99,15 +103,35 @@ class PythonInterface:
 				definitions[section][item[0]] = item[1]
 
 		for section in definitions:
-			if (definitions[section].get('type') == 'int'):
-				definitions[section]['on'] = int(definitions[section]['on'])
-				definitions[section]['off'] = int(definitions[section]['off'])
-			elif (definitions[section].get('type') == 'float'):
-				definitions[section]['on'] = float(definitions[section]['on'])
-				definitions[section]['off'] = float(definitions[section]['off'])
+			type = definitions[section].get('type')
+			if (type == 'command'):
+				continue
+
+			if (definitions[section].get('mode') == 'loop'):
+				if (type == 'int'):
+					definitions[section]['min'] = int(definitions[section]['min'])
+					definitions[section]['max'] = int(definitions[section]['max'])
+					definitions[section]['increment'] = int(definitions[section]['increment'])
+				elif (type == 'float'):
+					definitions[section]['min'] = float(definitions[section]['min'])
+					definitions[section]['max'] = float(definitions[section]['max'])
+					definitions[section]['increment'] = float(definitions[section]['increment'])
+			else:
+				if (type == 'int'):
+					definitions[section]['on'] = int(definitions[section]['on'])
+					definitions[section]['off'] = int(definitions[section]['off'])
+				elif (type == 'float'):
+					definitions[section]['on'] = float(definitions[section]['on'])
+					definitions[section]['off'] = float(definitions[section]['off'])
 		
 		self.definitions = definitions
+		pass
 
+	def getCommand(self, commandString):
+		if (self.commands.get(commandString) == None):
+			self.commands[commandString] = XPLMFindCommand(commandString)
+		return self.commands.get(commandString)
+		
 	def getDataref(self, datarefString):
 		if (self.datarefs.get(datarefString) == None):
 			self.datarefs[datarefString] = XPLMFindDataRef(datarefString)
@@ -121,15 +145,18 @@ class PythonInterface:
 		pass
 
 	def XPluginEnable(self):
-		self.config(True)
+		self.config()
 		return 1
 
 	def XPluginDisable(self):
 		pass
 
 	def XPluginReceiveMessage(self, inFromWho, inMessage, inParam):
+		if (inFromWho == XPLM_PLUGIN_XPLANE):
+			if (inParam == XPLM_PLUGIN_XPLANE and inMessage == XPLM_MSG_PLANE_LOADED):
+				self.config()
 		pass
-		
+
 	def FlightLoopCallback(self, elapsedMe, elapsedSim, counter, refcon):
 		if (True != self.run):
 			print "Arduino not running";
@@ -161,21 +188,55 @@ class PythonInterface:
 					continue
 				
 				definition = self.definitions.get(key)
-				
-				datarefString = definition.get('dataref')
-				if (datarefString == None):
-					continue
-				
-				dataref = self.getDataref(datarefString)
-				if (dataref == None):
-					continue
-				
 				type = definition.get('type')
-				value = definition.get('on') if state == 1 else definition.get('off')
-				if (type == 'int'):
-					XPLMSetDatai(dataref, value)
-				elif (type == 'float'):
-					XPLMSetDataf(dataref, value)
+				if (type == 'command'):
+					commandString = definition.get('command')
+					if (commandString == None):
+						continue
+						
+					command = self.getCommand(commandString)
+					if (command == None):
+						continue
+						
+					if state == 1:
+						XPLMCommandOnce(command)
+				else:
+					datarefString = definition.get('dataref')
+					if (datarefString == None):
+						continue
+					
+					dataref = self.getDataref(datarefString)
+					if (dataref == None):
+						continue
+					
+					type = definition.get('type')
+					if (definition.get('mode') == 'loop'):
+						if state == 0:
+							self.lastState[i] = 0
+							continue
+						if self.lastState[i] == 1:
+							continue
+						self.lastState[i] = 1
+
+						min = definition.get('min')
+						max = definition.get('max')
+						increment = definition.get('increment')
+
+						if (type == 'int'):
+							value = XPLMGetDatai(dataref)
+						elif (type == 'float'):
+							value = XPLMGetDataf(dataref)
+
+						value = value + increment
+						if (value > max or value < min):
+							value = min
+					else:
+						value = definition.get('on') if state == 1 else definition.get('off')
+
+					if (type == 'int'):
+						XPLMSetDatai(dataref, value)
+					elif (type == 'float'):
+						XPLMSetDataf(dataref, value)
 		except serial.SerialException:
 			print "Exception: No connection found"
 			return 1;
