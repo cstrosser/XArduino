@@ -10,12 +10,15 @@ from XPLMDataAccess import *
 from XPLMUtilities import *
 from XPLMPlanes import *
 from XPLMPlugin import *
+from XPLMMenus import *
 
 import serial
 import sys
 
 import ConfigParser
 from os import path
+
+reloadConfig = 1
 
 class PythonInterface:
 	KEY_BUTTON1 = "button1"
@@ -37,11 +40,11 @@ class PythonInterface:
 	OFFSET_SWITCH1 = 5
 	OFFSET_SWITCH2 = 6
 	OFFSET_SWITCH3 = 7
-	OFFSET_SWITCH4 = 0
-	OFFSET_SWITCH5 = 8
-	OFFSET_SWITCH6 = 9
-	OFFSET_SWITCH7 = 10
-	OFFSET_SWITCH8 = 11
+	OFFSET_SWITCH4 = 8
+	OFFSET_SWITCH5 = 9
+	OFFSET_SWITCH6 = 10
+	OFFSET_SWITCH7 = 11
+	OFFSET_SWITCH8 = 12
 
 	def XPluginStart(self):
 		self.Name = "XArduino"
@@ -73,9 +76,14 @@ class PythonInterface:
 		for i in self.buttonToOffset:
 			self.offsetToButton[self.buttonToOffset[i]] = i
 			self.lastState[self.buttonToOffset[i]] = 0
-
+		
+		menu = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "XArduino", 0, 1)
+		self.menuHandlerCB = self.MenuHandlerCallback
+		self.menu = XPLMCreateMenu(self, "XArduino", XPLMFindPluginsMenu(), menu, self.menuHandlerCB, 0)
+		XPLMAppendMenuItem(self.menu, "Reload config", reloadConfig, 1)
+		
 		try:
-			self.s = serial.Serial(10, 9600, timeout=0)
+			self.s = serial.Serial(11, 9600, timeout=0)
 
 			self.run = True;
 			self.buffer = ''
@@ -85,7 +93,7 @@ class PythonInterface:
 			XPLMRegisterFlightLoopCallback(self, self.FlightLoopCB, self.interval, 0)
 		except serial.SerialException:
 			self.run = False;
-			
+		
 		return self.Name, self.Sig, self.Desc
 	
 	def config(self):
@@ -188,8 +196,8 @@ class PythonInterface:
 					continue
 				
 				definition = self.definitions.get(key)
-				type = definition.get('type')
-				if (type == 'command'):
+				mode = definition.get('mode')
+				if (mode == 'command'):
 					commandString = definition.get('command')
 					if (commandString == None):
 						continue
@@ -200,6 +208,21 @@ class PythonInterface:
 						
 					if state == 1:
 						XPLMCommandOnce(command)
+				elif (mode == 'command-toggle'):
+					commandOnString = definition.get('command_on')
+					commandOffString = definition.get('command_off')
+					if (commandOnString == None or commandOffString == None):
+						continue
+						
+					commandOn = self.getCommand(commandOnString)
+					commandOff = self.getCommand(commandOffString)
+					if (commandOn == None or commandOff == None):
+						continue
+					
+					if state == 1:
+						XPLMCommandOnce(commandOn)
+					else:
+						XPLMCommandOnce(commandOff)
 				else:
 					datarefString = definition.get('dataref')
 					if (datarefString == None):
@@ -210,7 +233,7 @@ class PythonInterface:
 						continue
 					
 					type = definition.get('type')
-					if (definition.get('mode') == 'loop'):
+					if (mode == 'loop'):
 						if state == 0:
 							self.lastState[i] = 0
 							continue
@@ -230,7 +253,7 @@ class PythonInterface:
 						value = value + increment
 						if (value > max or value < min):
 							value = min
-					else:
+					elif (mode == 'dataref'):
 						value = definition.get('on') if state == 1 else definition.get('off')
 
 					if (type == 'int'):
@@ -246,3 +269,8 @@ class PythonInterface:
 			print "Unexpected error: %s" % sys.exc_info()[1]
 		
 		return self.interval;
+		
+	def MenuHandlerCallback(self, inMenuRef, inItemRef):
+		if (inItemRef == reloadConfig):
+			self.config()
+		pass
