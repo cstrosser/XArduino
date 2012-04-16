@@ -33,6 +33,10 @@ class PythonInterface:
 	KEY_SWITCH6 = "switch6"
 	KEY_SWITCH7 = "switch7"
 	KEY_SWITCH8 = "switch8"
+	KEY_SWITCH9 = "switch9"
+	KEY_SWITCH10 = "switch10"
+	KEY_SWITCH11 = "switch11"
+	KEY_SWITCH12 = "switch12"
 	OFFSET_BUTTON1 = 1
 	OFFSET_BUTTON2 = 2
 	OFFSET_BUTTON3 = 3
@@ -45,6 +49,10 @@ class PythonInterface:
 	OFFSET_SWITCH6 = 10
 	OFFSET_SWITCH7 = 11
 	OFFSET_SWITCH8 = 12
+	OFFSET_SWITCH9 = 13
+	OFFSET_SWITCH10 = 14
+	OFFSET_SWITCH11 = 15
+	OFFSET_SWITCH12 = 16
 
 	def XPluginStart(self):
 		self.Name = "XArduino"
@@ -67,6 +75,10 @@ class PythonInterface:
 			self.KEY_SWITCH6 : self.OFFSET_SWITCH6,
 			self.KEY_SWITCH7 : self.OFFSET_SWITCH7,
 			self.KEY_SWITCH8 : self.OFFSET_SWITCH8,
+			self.KEY_SWITCH9 : self.OFFSET_SWITCH9,
+			self.KEY_SWITCH10 : self.OFFSET_SWITCH10,
+			self.KEY_SWITCH11 : self.OFFSET_SWITCH11,
+			self.KEY_SWITCH12 : self.OFFSET_SWITCH12,
 		}
 		
 		self.commands = {}
@@ -193,6 +205,7 @@ class PythonInterface:
 				
 				key = self.offsetToButton.get(i)
 				if (key == None):
+					print "cannot find button for offset :: " + key
 					continue
 				
 				definition = self.definitions.get(key)
@@ -209,20 +222,27 @@ class PythonInterface:
 					if state == 1:
 						XPLMCommandOnce(command)
 				elif (mode == 'command-toggle'):
-					commandOnString = definition.get('command_on')
-					commandOffString = definition.get('command_off')
-					if (commandOnString == None or commandOffString == None):
+					commandString0 = definition.get('command_0')
+					commandString1 = definition.get('command_1')
+					if (commandString0 == None or commandString1 == None):
 						continue
 						
-					commandOn = self.getCommand(commandOnString)
-					commandOff = self.getCommand(commandOffString)
-					if (commandOn == None or commandOff == None):
+					command0 = self.getCommand(commandString0)
+					command1 = self.getCommand(commandString1)
+					if (command0 == None or command1 == None):
 						continue
 					
-					if state == 1:
-						XPLMCommandOnce(commandOn)
+					commandString2 = definition.get('command_2')
+					if (commandString2 != None):
+						command2 = self.getCommand(commandString2)
+					
+					if state == 2:
+						if (command2 != None):
+							XPLMCommandOnce(command2)
+					elif state == 1:
+						XPLMCommandOnce(command1)
 					else:
-						XPLMCommandOnce(commandOff)
+						XPLMCommandOnce(command0)
 				else:
 					datarefString = definition.get('dataref')
 					if (datarefString == None):
@@ -254,7 +274,7 @@ class PythonInterface:
 						if (value > max or value < min):
 							value = min
 					elif (mode == 'dataref'):
-						value = definition.get('on') if state == 1 else definition.get('off')
+						value = definition.get(state)
 
 					if (type == 'int'):
 						XPLMSetDatai(dataref, value)
