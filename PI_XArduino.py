@@ -37,6 +37,10 @@ class PythonInterface:
 	KEY_SWITCH10 = "switch10"
 	KEY_SWITCH11 = "switch11"
 	KEY_SWITCH12 = "switch12"
+	KEY_SWITCH13 = "switch13"
+	KEY_SWITCH14 = "switch14"
+	KEY_SWITCH15 = "switch15"
+	KEY_SWITCH16 = "switch16"
 	OFFSET_BUTTON1 = 1
 	OFFSET_BUTTON2 = 2
 	OFFSET_BUTTON3 = 3
@@ -53,11 +57,15 @@ class PythonInterface:
 	OFFSET_SWITCH10 = 14
 	OFFSET_SWITCH11 = 15
 	OFFSET_SWITCH12 = 16
+	OFFSET_SWITCH13 = 17
+	OFFSET_SWITCH14 = 18
+	OFFSET_SWITCH15 = 19
+	OFFSET_SWITCH16 = 20
 
 	def XPluginStart(self):
 		self.Name = "XArduino"
-		self.Sig =  "ChrisStrosser.XPlane.XArduino"
-		self.Desc = ""
+		self.Sig =  "strosser.usb.xarduino"
+		self.Desc = "Interfaces Arduino with X-Plane"
 		
 		self.configFile = 'xarduino.ini'
 		self.systemPath = XPLMGetSystemPath("")
@@ -79,6 +87,10 @@ class PythonInterface:
 			self.KEY_SWITCH10 : self.OFFSET_SWITCH10,
 			self.KEY_SWITCH11 : self.OFFSET_SWITCH11,
 			self.KEY_SWITCH12 : self.OFFSET_SWITCH12,
+			self.KEY_SWITCH13 : self.OFFSET_SWITCH13,
+			self.KEY_SWITCH14 : self.OFFSET_SWITCH14,
+			self.KEY_SWITCH15 : self.OFFSET_SWITCH15,
+			self.KEY_SWITCH16 : self.OFFSET_SWITCH16,
 		}
 		
 		self.commands = {}
@@ -138,11 +150,19 @@ class PythonInterface:
 					definitions[section]['increment'] = float(definitions[section]['increment'])
 			else:
 				if (type == 'int'):
-					definitions[section]['on'] = int(definitions[section]['on'])
-					definitions[section]['off'] = int(definitions[section]['off'])
+					definitions[section][0] = int(definitions[section]['0'])
+					definitions[section][1] = int(definitions[section]['1'])
+					
+					position2 = definitions[section].get('2')
+					if (position2 != None):
+						definitions[section][2] = int(definitions[section]['2'])
 				elif (type == 'float'):
-					definitions[section]['on'] = float(definitions[section]['on'])
-					definitions[section]['off'] = float(definitions[section]['off'])
+					definitions[section][0] = float(definitions[section]['0'])
+					definitions[section][1] = float(definitions[section]['1'])
+					
+					position2 = definitions[section].get('2')
+					if (position2 != None):
+						definitions[section][2] = float(definitions[section]['2'])
 		
 		self.definitions = definitions
 		pass

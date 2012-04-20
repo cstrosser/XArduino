@@ -14,24 +14,29 @@ Copyright (c) 2012 by Chris Strosser
 #define SWITCH2 41
 #define SWITCH3 42
 #define SWITCH4 43
-#define SWITCH5_A 45
-#define SWITCH5_B 44
-#define SWITCH6_A 47
-#define SWITCH6_B 46
-#define SWITCH7 48
-#define SWITCH8 49
-#define SWITCH9 50
-#define SWITCH10 51
-#define SWITCH11 52
-#define SWITCH12 53
-#define LED_SWITCH5 5
-#define LED_SWITCH6 4
-#define LED_SWITCH7 3
-#define LED_SWITCH8 2
-#define LED_SWITCH9 9
-#define LED_SWITCH10 8
-#define LED_SWITCH11 7
-#define LED_SWITCH12 6
+#define SWITCH5 48
+#define SWITCH6 35
+#define SWITCH7 34
+#define SWITCH8 33
+#define SWITCH9_A 45
+#define SWITCH9_B 44
+#define SWITCH10_A 47
+#define SWITCH10_B 46
+#define SWITCH11_A 31
+#define SWITCH11_B 32
+#define SWITCH12 49
+#define SWITCH13 50
+#define SWITCH14 51
+#define SWITCH15 52
+#define SWITCH16 53
+#define LED_SWITCH9 5
+#define LED_SWITCH10 4
+#define LED_SWITCH11 3
+#define LED_SWITCH12 2
+#define LED_SWITCH13 9
+#define LED_SWITCH14 8
+#define LED_SWITCH15 7
+#define LED_SWITCH16 6
 
 void setup() {
   Serial.begin(9600);
@@ -44,25 +49,30 @@ void setup() {
   pinMode(SWITCH2, INPUT);
   pinMode(SWITCH3, INPUT);
   pinMode(SWITCH4, INPUT);
-  pinMode(SWITCH5_A, INPUT);
-  pinMode(SWITCH5_B, INPUT);
-  pinMode(SWITCH6_A, INPUT);
-  pinMode(SWITCH6_B, INPUT);
+  pinMode(SWITCH5, INPUT);
+  pinMode(SWITCH6, INPUT);
   pinMode(SWITCH7, INPUT);
   pinMode(SWITCH8, INPUT);
-  pinMode(SWITCH9, INPUT);
-  pinMode(SWITCH10, INPUT);
-  pinMode(SWITCH11, INPUT);
+  pinMode(SWITCH9_A, INPUT);
+  pinMode(SWITCH9_B, INPUT);
+  pinMode(SWITCH10_A, INPUT);
+  pinMode(SWITCH10_B, INPUT);
+  pinMode(SWITCH11_A, INPUT);
+  pinMode(SWITCH11_B, INPUT);
   pinMode(SWITCH12, INPUT);
+  pinMode(SWITCH13, INPUT);
+  pinMode(SWITCH14, INPUT);
+  pinMode(SWITCH15, INPUT);
+  pinMode(SWITCH16, INPUT);
   
-  pinMode(LED_SWITCH5, OUTPUT);
-  pinMode(LED_SWITCH6, OUTPUT);
-  pinMode(LED_SWITCH7, OUTPUT);
-  pinMode(LED_SWITCH8, OUTPUT);
   pinMode(LED_SWITCH9, OUTPUT);
   pinMode(LED_SWITCH10, OUTPUT);
   pinMode(LED_SWITCH11, OUTPUT);
   pinMode(LED_SWITCH12, OUTPUT);
+  pinMode(LED_SWITCH13, OUTPUT);
+  pinMode(LED_SWITCH14, OUTPUT);
+  pinMode(LED_SWITCH15, OUTPUT);
+  pinMode(LED_SWITCH16, OUTPUT);
 }
 
 void loop() {
@@ -74,28 +84,39 @@ void loop() {
   int sensorSwitch2 = digitalRead(SWITCH2);
   int sensorSwitch3 = digitalRead(SWITCH3);
   int sensorSwitch4 = digitalRead(SWITCH4);
-  int sensorSwitch5 = 1;
-  int sensorSwitch5A = digitalRead(SWITCH5_A);
-  int sensorSwitch5B = digitalRead(SWITCH5_B);
-  int sensorSwitch6 = 1;
-  int sensorSwitch6A = digitalRead(SWITCH6_A);
-  int sensorSwitch6B = digitalRead(SWITCH6_B);
+  int sensorSwitch5 = digitalRead(SWITCH5);
+  int sensorSwitch6 = digitalRead(SWITCH6);
   int sensorSwitch7 = digitalRead(SWITCH7);
   int sensorSwitch8 = digitalRead(SWITCH8);
-  int sensorSwitch9 = digitalRead(SWITCH9);
-  int sensorSwitch10 = digitalRead(SWITCH10);
-  int sensorSwitch11 = digitalRead(SWITCH11);
+  int sensorSwitch9 = 1;
+  int sensorSwitch9A = digitalRead(SWITCH9_A);
+  int sensorSwitch9B = digitalRead(SWITCH9_B);
+  int sensorSwitch10 = 1;
+  int sensorSwitch10A = digitalRead(SWITCH10_A);
+  int sensorSwitch10B = digitalRead(SWITCH10_B);
+  int sensorSwitch11 = 1;
+  int sensorSwitch11A = digitalRead(SWITCH11_A);
+  int sensorSwitch11B = digitalRead(SWITCH11_B);
   int sensorSwitch12 = digitalRead(SWITCH12);
+  int sensorSwitch13 = digitalRead(SWITCH13);
+  int sensorSwitch14 = digitalRead(SWITCH14);
+  int sensorSwitch15 = digitalRead(SWITCH15);
+  int sensorSwitch16 = digitalRead(SWITCH16);
   
-  if (sensorSwitch5A) {
-    sensorSwitch5 = 2;
-  } else if (sensorSwitch5B) {
-    sensorSwitch5 = 0;
+  if (sensorSwitch9A) {
+    sensorSwitch9 = 2;
+  } else if (sensorSwitch9B) {
+    sensorSwitch9 = 0;
   }
-  if (sensorSwitch6A) {
-    sensorSwitch6 = 2;
-  } else if (sensorSwitch6B) {
-    sensorSwitch6 = 0;
+  if (sensorSwitch10A) {
+    sensorSwitch10 = 2;
+  } else if (sensorSwitch10B) {
+    sensorSwitch10 = 0;
+  }
+  if (sensorSwitch11A) {
+    sensorSwitch11 = 2;
+  } else if (sensorSwitch11B) {
+    sensorSwitch11 = 0;
   }
   
   Serial.print('H');
@@ -131,31 +152,45 @@ void loop() {
   Serial.print(sensorSwitch11, DEC);
   Serial.print(",");
   Serial.print(sensorSwitch12, DEC);
+  Serial.print(",");
+  Serial.print(sensorSwitch13, DEC);
+  Serial.print(",");
+  Serial.print(sensorSwitch14, DEC);
+  Serial.print(",");
+  Serial.print(sensorSwitch15, DEC);
+  Serial.print(",");
+  Serial.print(sensorSwitch16, DEC);
   //Serial.print(",");
   Serial.println();
   
   int ledOff = 0;
   int ledOn = 60;
-  if (sensorSwitch5 == 1) {
-    analogWrite(LED_SWITCH5, ledOn / 2);
-  } else if (sensorSwitch5 == 2) {
-    analogWrite(LED_SWITCH5, ledOn);
+  if (sensorSwitch9 == 1) {
+    analogWrite(LED_SWITCH9, ledOn / 2);
+  } else if (sensorSwitch9 == 2) {
+    analogWrite(LED_SWITCH9, ledOn);
   } else {
-    analogWrite(LED_SWITCH5, ledOff);
+    analogWrite(LED_SWITCH9, ledOff);
   }
-  if (sensorSwitch6 == 1) {
-    analogWrite(LED_SWITCH6, ledOn / 2);
-  } else if (sensorSwitch6 == 2) {
-    analogWrite(LED_SWITCH6, ledOn);
+  if (sensorSwitch10 == 1) {
+    analogWrite(LED_SWITCH10, ledOn / 2);
+  } else if (sensorSwitch10 == 2) {
+    analogWrite(LED_SWITCH10, ledOn);
   } else {
-    analogWrite(LED_SWITCH6, ledOff);
+    analogWrite(LED_SWITCH10, ledOff);
   }
-  analogWrite(LED_SWITCH7, sensorSwitch7 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH8, sensorSwitch8 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH9, sensorSwitch9 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH10, sensorSwitch10 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH11, sensorSwitch11 ? ledOn : ledOff);
+  if (sensorSwitch11 == 1) {
+    analogWrite(LED_SWITCH11, ledOn / 2);
+  } else if (sensorSwitch11 == 2) {
+    analogWrite(LED_SWITCH11, ledOn);
+  } else {
+    analogWrite(LED_SWITCH11, ledOff);
+  }
   analogWrite(LED_SWITCH12, sensorSwitch12 ? ledOn : ledOff);
+  analogWrite(LED_SWITCH13, sensorSwitch13 ? ledOn : ledOff);
+  analogWrite(LED_SWITCH14, sensorSwitch14 ? ledOn : ledOff);
+  analogWrite(LED_SWITCH15, sensorSwitch15 ? ledOn : ledOff);
+  analogWrite(LED_SWITCH16, sensorSwitch16 ? ledOn : ledOff);
   
   delay(50);
 }
