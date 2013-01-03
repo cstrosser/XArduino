@@ -20,6 +20,13 @@ from os import path
 
 reloadConfig = 1
 
+class ArduinoMalformedLine(Exception):
+	def __init__(self, value):
+		self.value = value
+	
+	def __str__(self):
+		return repr(self.value)
+
 class PythonInterface:
 	KEY_BUTTON1 = "button1"
 	KEY_BUTTON2 = "button2"
@@ -67,7 +74,7 @@ class PythonInterface:
 		self.Sig =  "strosser.usb.xarduino"
 		self.Desc = "Interfaces Arduino with X-Plane"
 		
-		self.configFile = 'xarduino.ini'
+		self.configFile = "xarduino.ini"
 		self.systemPath = XPLMGetSystemPath("")
 
 		self.buttonToOffset = {
@@ -107,12 +114,13 @@ class PythonInterface:
 		XPLMAppendMenuItem(self.menu, "Reload config", reloadConfig, 1)
 		
 		try:
-			self.s = serial.Serial(11, 9600, timeout=0)
+			# Change COM port to match your computer
+			self.s = serial.Serial("COM3", 9600, timeout=0)
 
 			self.run = True;
 			self.buffer = ''
 			
-			self.interval = -1
+			self.interval = -3
 			self.FlightLoopCB = self.FlightLoopCallback
 			XPLMRegisterFlightLoopCallback(self, self.FlightLoopCB, self.interval, 0)
 		except serial.SerialException:
@@ -125,7 +133,7 @@ class PythonInterface:
 		
 		config = ConfigParser.RawConfigParser()
 		if (not config.read(planePath.replace(plane, self.configFile))):
-			config.read(self.systemPath + 'Resources/plugins/PythonScripts/' + self.configFile)
+			config.read(self.systemPath + "Resources/plugins/PythonScripts/" + self.configFile)
 				     
 		definitions = {}
 		for section in config.sections():		    
@@ -178,9 +186,9 @@ class PythonInterface:
 		return self.datarefs.get(datarefString)
 
 	def XPluginStop(self):
-		# Unregister the callback
-		XPLMUnregisterFlightLoopCallback(self, self.FlightLoopCB, 0)
 		if self.run:
+			# Unregister the callback
+			XPLMUnregisterFlightLoopCallback(self, self.FlightLoopCB, 0)
 			self.s.close();
 		pass
 
@@ -203,12 +211,35 @@ class PythonInterface:
 			return 0;
 		
 		try:
-			line = self.s.readline()
-			if len(line) < 22:
+			loop = 1
+			while loop == 1:
+				byte = self.s.read()
+				if byte == "H":
+					# Header character found, start constructing string
+					line = "H"
+					
+					innerLoop = 1
+					while innerLoop == 1:
+						byte = self.s.read()
+
+						if byte != "\r":
+							line = line + byte
+						else:
+							# Wait for return character to stop
+							innerLoop = 0
+							loop = 0
+			
+			if "," in line[::2]:
+				raise ArduinoMalformedLine(line)
+			if "" != line[1::2].replace(',', ''):
+				raise ArduinoMalformedLine(line)
+			
+			if len(line) < 40:
 				return self.interval;
 			
 			values = line.split(",")
 			if (values[0] != "H"):
+				print "Header value not found"
 				return self.interval;
 			
 			i = -1
@@ -218,7 +249,7 @@ class PythonInterface:
 					# Header - do nothing
 					continue
 
-				if (value == ''):
+				if (value == '' or value == "H"):
 					continue
 					
 				state = int(value)
@@ -242,27 +273,63 @@ class PythonInterface:
 					if state == 1:
 						XPLMCommandOnce(command)
 				elif (mode == 'command-toggle'):
-					commandString0 = definition.get('command_0')
-					commandString1 = definition.get('command_1')
-					if (commandString0 == None or commandString1 == None):
-						continue
+					if state == 0:
+						commandString0 = definition.get('command_0')
+						if commandString0 == None:
+							continue
 						
-					command0 = self.getCommand(commandString0)
-					command1 = self.getCommand(commandString1)
-					if (command0 == None or command1 == None):
-						continue
-					
-					commandString2 = definition.get('command_2')
-					if (commandString2 != None):
-						command2 = self.getCommand(commandString2)
-					
-					if state == 2:
-						if (command2 != None):
-							XPLMCommandOnce(command2)
+						if '("' in commandString0:
+							evalCommands = eval(commandString0)
+							for evalCommand in evalCommands:
+								command = self.getCommand(evalCommand)
+								if command == None:
+									continue
+								
+								XPLMCommandOnce(command)
+						else:
+							command0 = self.getCommand(commandString0)
+							if command0 == None:
+								continue
+								
+							XPLMCommandOnce(command0)
 					elif state == 1:
-						XPLMCommandOnce(command1)
-					else:
-						XPLMCommandOnce(command0)
+						commandString1 = definition.get('command_1')
+						if commandString1 == None:
+							continue
+						
+						if '("' in commandString1:
+							evalCommands = eval(commandString1)
+							for evalCommand in evalCommands:
+								command = self.getCommand(evalCommand)
+								if command == None:
+									continue
+								
+								XPLMCommandOnce(command)
+						else:
+							command1 = self.getCommand(commandString1)
+							if command1 == None:
+								continue
+								
+							XPLMCommandOnce(command1)
+					elif state == 2:
+						commandString2 = definition.get('command_2')
+						if commandString2 == None:
+							continue
+						
+						if '("' in commandString2:
+							evalCommands = eval(commandString2)
+							for evalCommand in evalCommands:
+								command = self.getCommand(evalCommand)
+								if command == None:
+									continue
+								
+								XPLMCommandOnce(command)
+						else:
+							command2 = self.getCommand(commandString2)
+							if command2 == None:
+								continue
+								
+							XPLMCommandOnce(command2)
 				else:
 					datarefString = definition.get('dataref')
 					if (datarefString == None):
@@ -295,6 +362,15 @@ class PythonInterface:
 							value = min
 					elif (mode == 'dataref'):
 						value = definition.get(state)
+						if (type == 'int'):
+							currentValue = XPLMGetDatai(dataref)
+						elif (type == 'float'):
+							currentValue = XPLMGetDatai(dataref)
+						
+						if (currentValue == value):
+							continue
+							
+						
 
 					if (type == 'int'):
 						XPLMSetDatai(dataref, value)
@@ -305,6 +381,8 @@ class PythonInterface:
 			return 1;
 		except serial.SerialTimeoutException:
 			print "Exception: Connection timed out"
+		except ArduinoMalformedLine as e:
+			print 'Malformed line detected: ' + e.value;
 		except:
 			print "Unexpected error: %s" % sys.exc_info()[1]
 		
