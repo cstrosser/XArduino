@@ -119,48 +119,31 @@ void loop() {
     sensorSwitch11 = 0;
   }
   
+  unsigned int out = 0;
+  out = setBit(out, 0, sensorButton1);
+  out = setBit(out, 1, sensorButton2);
+  out = setBit(out, 2, sensorButton3);
+  out = setBit(out, 3, sensorButton4);
+  out = setBit(out, 4, sensorSwitch1);
+  out = setBit(out, 5, sensorSwitch2);
+  out = setBit(out, 6, sensorSwitch3);
+  out = setBit(out, 7, sensorSwitch4);
+  out = setBit(out, 8, sensorSwitch5);
+  out = setBit(out, 9, sensorSwitch6);
+  out = setBit(out, 10, sensorSwitch7);
+  out = setBit(out, 11, sensorSwitch8);
+  out = setBit(out, 12, sensorSwitch9);
+  out = setBit(out, 13, sensorSwitch10);
+  out = setBit(out, 14, sensorSwitch11);
+  out = setBit(out, 15, sensorSwitch12);
+  out = setBit(out, 16, sensorSwitch13);
+  out = setBit(out, 17, sensorSwitch14);
+  out = setBit(out, 18, sensorSwitch15);
+  out = setBit(out, 19, sensorSwitch16);
+  
   Serial.print('H');
   Serial.print(",");
-  Serial.print(sensorButton1, DEC);
-  Serial.print(",");
-  Serial.print(sensorButton2, DEC);
-  Serial.print(",");
-  Serial.print(sensorButton3, DEC);
-  Serial.print(",");
-  Serial.print(sensorButton4, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch1, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch2, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch3, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch4, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch5, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch6, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch7, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch8, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch9, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch10, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch11, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch12, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch13, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch14, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch15, DEC);
-  Serial.print(",");
-  Serial.print(sensorSwitch16, DEC);
-  //Serial.print(",");
+  Serial.print(out);
   Serial.println();
   
   int ledOff = 0;
@@ -193,4 +176,14 @@ void loop() {
   analogWrite(LED_SWITCH16, sensorSwitch16 ? ledOn : ledOff);
   
   delay(50);
+}
+
+int setBit(unsigned int value, int bitNumber, int state)
+{
+  if (state == 0) {
+    value &= ~(1 << bitNumber);
+  } else {
+    value |= (state << bitNumber);
+  }
+  return value;
 }

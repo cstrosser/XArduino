@@ -48,26 +48,26 @@ class PythonInterface:
 	KEY_SWITCH14 = "switch14"
 	KEY_SWITCH15 = "switch15"
 	KEY_SWITCH16 = "switch16"
-	OFFSET_BUTTON1 = 1
-	OFFSET_BUTTON2 = 2
-	OFFSET_BUTTON3 = 3
-	OFFSET_BUTTON4 = 4
-	OFFSET_SWITCH1 = 5
-	OFFSET_SWITCH2 = 6
-	OFFSET_SWITCH3 = 7
-	OFFSET_SWITCH4 = 8
-	OFFSET_SWITCH5 = 9
-	OFFSET_SWITCH6 = 10
-	OFFSET_SWITCH7 = 11
-	OFFSET_SWITCH8 = 12
-	OFFSET_SWITCH9 = 13
-	OFFSET_SWITCH10 = 14
-	OFFSET_SWITCH11 = 15
-	OFFSET_SWITCH12 = 16
-	OFFSET_SWITCH13 = 17
-	OFFSET_SWITCH14 = 18
-	OFFSET_SWITCH15 = 19
-	OFFSET_SWITCH16 = 20
+	OFFSET_BUTTON1 = 0
+	OFFSET_BUTTON2 = 1
+	OFFSET_BUTTON3 = 2
+	OFFSET_BUTTON4 = 3
+	OFFSET_SWITCH1 = 4
+	OFFSET_SWITCH2 = 5
+	OFFSET_SWITCH3 = 6
+	OFFSET_SWITCH4 = 7
+	OFFSET_SWITCH5 = 8
+	OFFSET_SWITCH6 = 9
+	OFFSET_SWITCH7 = 10
+	OFFSET_SWITCH8 = 11
+	OFFSET_SWITCH9 = 12
+	OFFSET_SWITCH10 = 13
+	OFFSET_SWITCH11 = 14
+	OFFSET_SWITCH12 = 15
+	OFFSET_SWITCH13 = 16
+	OFFSET_SWITCH14 = 17
+	OFFSET_SWITCH15 = 18
+	OFFSET_SWITCH16 = 19
 
 	def XPluginStart(self):
 		self.Name = "XArduino"
@@ -120,7 +120,7 @@ class PythonInterface:
 			self.run = True;
 			self.buffer = ''
 			
-			self.interval = -3
+			self.interval = -2
 			self.FlightLoopCB = self.FlightLoopCallback
 			XPLMRegisterFlightLoopCallback(self, self.FlightLoopCB, self.interval, 0)
 		except serial.SerialException:
@@ -231,27 +231,25 @@ class PythonInterface:
 			
 			if "," in line[::2]:
 				raise ArduinoMalformedLine(line)
-			if "" != line[1::2].replace(',', ''):
-				raise ArduinoMalformedLine(line)
-			
-			if len(line) < 40:
-				return self.interval;
 			
 			values = line.split(",")
 			if (values[0] != "H"):
 				print "Header value not found"
 				return self.interval;
+				
+			values[1] = int(values[1])
 			
-			i = -1
-			for value in values:
-				i += 1
-				if i == 0:
-					# Header - do nothing
-					continue
-
-				if (value == '' or value == "H"):
-					continue
-					
+			for i in range(20):
+				if (values[1] & (1 << i)):
+					#print "setting value 1 for %s" % i
+					value = "1"
+				#elif (values[1] & (2 << i)):
+					#print "setting value 2 for %s" % i
+					#value = "2"
+				else:
+					#print "setting value 0 for %s" % i
+					value = "0"
+				
 				state = int(value)
 				
 				key = self.offsetToButton.get(i)
@@ -365,7 +363,7 @@ class PythonInterface:
 						if (type == 'int'):
 							currentValue = XPLMGetDatai(dataref)
 						elif (type == 'float'):
-							currentValue = XPLMGetDatai(dataref)
+							currentValue = XPLMGetDataf(dataref)
 						
 						if (currentValue == value):
 							continue
@@ -384,7 +382,13 @@ class PythonInterface:
 		except ArduinoMalformedLine as e:
 			print 'Malformed line detected: ' + e.value;
 		except:
-			print "Unexpected error: %s" % sys.exc_info()[1]
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			print "Unexpected error: %s" % exc_obj
+			print "Output: %s" % values[1]
+			print "Bit: %s" % i
+			print "State: %s" % state
+			print "Value: %s" % value
+			print "Line #: %s" % exc_tb.tb_lineno
 		
 		return self.interval;
 		
