@@ -38,6 +38,9 @@ Copyright (c) 2012 by Chris Strosser
 #define LED_SWITCH15 7
 #define LED_SWITCH16 6
 
+int lastValue[20];
+boolean change = true;
+
 void setup() {
   Serial.begin(9600);
   
@@ -141,10 +144,21 @@ void loop() {
   out = setBit(out, 18, sensorSwitch15);
   out = setBit(out, 19, sensorSwitch16);
   
-  Serial.print('H');
-  Serial.print(",");
-  Serial.print(out);
-  Serial.println();
+  if (change) {
+    Serial.print('H');
+    Serial.print(",");
+    Serial.print(out);
+    Serial.println();
+    Serial.print('H');
+    Serial.print(",");
+    Serial.print(out);
+    Serial.println();
+    Serial.print('H');
+    Serial.print(",");
+    Serial.print(out);
+    Serial.println();
+    change = false;
+  }
   
   int ledOff = 0;
   int ledOn = 60;
@@ -174,12 +188,15 @@ void loop() {
   analogWrite(LED_SWITCH14, sensorSwitch14 ? ledOn : ledOff);
   analogWrite(LED_SWITCH15, sensorSwitch15 ? ledOn : ledOff);
   analogWrite(LED_SWITCH16, sensorSwitch16 ? ledOn : ledOff);
-  
-  delay(50);
 }
 
 int setBit(unsigned int value, int bitNumber, int state)
 {
+  if (lastValue[bitNumber] != state) {
+    change = true;
+    lastValue[bitNumber] = state;
+  }
+  
   if (state == 0) {
     value &= ~(1 << bitNumber);
   } else {

@@ -76,6 +76,7 @@ class PythonInterface:
 		
 		self.configFile = "xarduino.ini"
 		self.systemPath = XPLMGetSystemPath("")
+		self.interval = -1
 
 		self.buttonToOffset = {
 			self.KEY_BUTTON1 : self.OFFSET_BUTTON1,
@@ -115,16 +116,14 @@ class PythonInterface:
 		
 		try:
 			# Change COM port to match your computer
-			self.s = serial.Serial("COM3", 9600, timeout=0)
+			self.s = serial.Serial("COM3", 9600, timeout = 0)
 
-			self.run = True;
-			self.buffer = ''
+			self.buffer = 0
 			
-			self.interval = -2
 			self.FlightLoopCB = self.FlightLoopCallback
 			XPLMRegisterFlightLoopCallback(self, self.FlightLoopCB, self.interval, 0)
 		except serial.SerialException:
-			self.run = False;
+			self.s = None
 		
 		return self.Name, self.Sig, self.Desc
 	
@@ -186,10 +185,10 @@ class PythonInterface:
 		return self.datarefs.get(datarefString)
 
 	def XPluginStop(self):
-		if self.run:
+		if self.s:
 			# Unregister the callback
 			XPLMUnregisterFlightLoopCallback(self, self.FlightLoopCB, 0)
-			self.s.close();
+			self.s.close()
 		pass
 
 	def XPluginEnable(self):
@@ -206,49 +205,34 @@ class PythonInterface:
 		pass
 
 	def FlightLoopCallback(self, elapsedMe, elapsedSim, counter, refcon):
-		if (True != self.run):
-			print "Arduino not running";
-			return 0;
+		if self.s == None:
+			print "Arduino not running"
+			return 0
 		
 		try:
-			loop = 1
-			while loop == 1:
-				byte = self.s.read()
-				if byte == "H":
-					# Header character found, start constructing string
-					line = "H"
-					
-					innerLoop = 1
-					while innerLoop == 1:
-						byte = self.s.read()
-
-						if byte != "\r":
-							line = line + byte
-						else:
-							# Wait for return character to stop
-							innerLoop = 0
-							loop = 0
+			line = self.s.readline()
 			
-			if "," in line[::2]:
+			if (len(line) <= 2):
+				return self.interval
+			
+			if (line[0:2] != "H,"):
 				raise ArduinoMalformedLine(line)
-			
-			values = line.split(",")
-			if (values[0] != "H"):
-				print "Header value not found"
-				return self.interval;
 				
-			values[1] = int(values[1])
+			values = int(line[2:])
+			if (values == self.buffer):
+				return self.interval
 			
+			i = 0
 			for i in range(20):
-				if (values[1] & (1 << i)):
-					#print "setting value 1 for %s" % i
+				if (values & (1 << i)):
 					value = "1"
-				#elif (values[1] & (2 << i)):
+				else:
+					value = "0"
+				'''
+				elif (values & (2 << i)):
 					#print "setting value 2 for %s" % i
 					#value = "2"
-				else:
-					#print "setting value 0 for %s" % i
-					value = "0"
+				'''
 				
 				state = int(value)
 				
@@ -376,21 +360,21 @@ class PythonInterface:
 						XPLMSetDataf(dataref, value)
 		except serial.SerialException:
 			print "Exception: No connection found"
-			return 1;
+			return 1
 		except serial.SerialTimeoutException:
 			print "Exception: Connection timed out"
 		except ArduinoMalformedLine as e:
-			print 'Malformed line detected: ' + e.value;
+			print 'Malformed line detected: ' + e.value
 		except:
 			exc_type, exc_obj, exc_tb = sys.exc_info()
 			print "Unexpected error: %s" % exc_obj
-			print "Output: %s" % values[1]
+			print "Output: %s" % values
 			print "Bit: %s" % i
 			print "State: %s" % state
 			print "Value: %s" % value
 			print "Line #: %s" % exc_tb.tb_lineno
 		
-		return self.interval;
+		return self.interval
 		
 	def MenuHandlerCallback(self, inMenuRef, inItemRef):
 		if (inItemRef == reloadConfig):
