@@ -60,14 +60,14 @@ class PythonInterface:
     OFFSET_SWITCH6 = 9
     OFFSET_SWITCH7 = 10
     OFFSET_SWITCH8 = 11
-    OFFSET_SWITCH9 = 12
-    OFFSET_SWITCH10 = 13
-    OFFSET_SWITCH11 = 14
-    OFFSET_SWITCH12 = 15
-    OFFSET_SWITCH13 = 16
-    OFFSET_SWITCH14 = 17
-    OFFSET_SWITCH15 = 18
-    OFFSET_SWITCH16 = 19
+    OFFSET_SWITCH9 = 16
+    OFFSET_SWITCH10 = 17
+    OFFSET_SWITCH11 = 18
+    OFFSET_SWITCH12 = 19
+    OFFSET_SWITCH13 = 12
+    OFFSET_SWITCH14 = 13
+    OFFSET_SWITCH15 = 14
+    OFFSET_SWITCH16 = 15
 
     def XPluginStart(self):
         self.Name = "XArduino"
@@ -114,16 +114,20 @@ class PythonInterface:
         self.menu = XPLMCreateMenu(self, "XArduino", XPLMFindPluginsMenu(), menu, self.menuHandlerCB, 0)
         XPLMAppendMenuItem(self.menu, "Reload config", reloadConfig, 1)
         
-        try:
-            # Change COM port to match your computer
-            self.s = serial.Serial("COM3", 9600, timeout = 0)
+        config = ConfigParser.ConfigParser()
+        config.read(self.systemPath + "Resources/plugins/PythonScripts/" + self.configFile)
+        
+        if ('main' in config.sections()):
+            try:
+                self.s = serial.Serial(config.get('main', 'port'), config.get('main', 'baud'), timeout = 0)
 
-            self.buffer = 0
-            
-            self.FlightLoopCB = self.FlightLoopCallback
-            XPLMRegisterFlightLoopCallback(self, self.FlightLoopCB, self.interval, 0)
-        except serial.SerialException:
-            self.s = None
+                self.bufferA = 0
+                self.bufferB = 0
+                
+                self.FlightLoopCB = self.FlightLoopCallback
+                XPLMRegisterFlightLoopCallback(self, self.FlightLoopCB, self.interval, 0)
+            except serial.SerialException:
+                self.s = None
         
         return self.Name, self.Sig, self.Desc
     
@@ -135,9 +139,9 @@ class PythonInterface:
             config.read(self.systemPath + "Resources/plugins/PythonScripts/" + self.configFile)
                      
         definitions = {}
-        for section in config.sections():            
+        for section in config.sections():
             definitions[section] = {}
-            
+
             for item in config.items(section):
                 definitions[section][item[0]] = item[1]
 
@@ -205,177 +209,185 @@ class PythonInterface:
         pass
 
     def FlightLoopCallback(self, elapsedMe, elapsedSim, counter, refcon):
-        if self.s == None:
-            print "Arduino not running"
-            return 0
-        
         try:
             line = self.s.readline()
             
             if (len(line) <= 2):
                 return self.interval
             
-            if (line[0:2] != "H,"):
-                raise ArduinoMalformedLine(line)
-                
-            values = int(line[2:])
-            if (values == self.buffer):
-                return self.interval
+            if (line[0:2] == "A,"):
+                buffer = int(line[2:])
+                if (buffer == self.bufferA):
+                    return self.interval
             
-            i = 0
-            for i in range(20):
-                if (values & (1 << i)):
-                    value = "1"
-                else:
-                    value = "0"
-                '''
-                elif (values & (2 << i)):
-                    #print "setting value 2 for %s" % i
-                    #value = "2"
-                '''
-                
-                state = int(value)
-                
-                key = self.offsetToButton.get(i)
-                if (key == None):
-                    print "cannot find button for offset :: " + key
-                    continue
-                
-                definition = self.definitions.get(key)
-                mode = definition.get('mode')
-                if (mode == 'command'):
-                    commandString = definition.get('command')
-                    if (commandString == None):
-                        continue
-                        
-                    command = self.getCommand(commandString)
-                    if (command == None):
-                        continue
-                        
-                    if state == 1:
-                        XPLMCommandOnce(command)
-                elif (mode == 'command-toggle'):
-                    if state == 0:
-                        commandString0 = definition.get('command_0')
-                        if commandString0 == None:
-                            continue
-                        
-                        if '("' in commandString0:
-                            evalCommands = eval(commandString0)
-                            for evalCommand in evalCommands:
-                                command = self.getCommand(evalCommand)
-                                if command == None:
-                                    continue
-                                
-                                XPLMCommandOnce(command)
-                        else:
-                            command0 = self.getCommand(commandString0)
-                            if command0 == None:
-                                continue
-                                
-                            XPLMCommandOnce(command0)
-                    elif state == 1:
-                        commandString1 = definition.get('command_1')
-                        if commandString1 == None:
-                            continue
-                        
-                        if '("' in commandString1:
-                            evalCommands = eval(commandString1)
-                            for evalCommand in evalCommands:
-                                command = self.getCommand(evalCommand)
-                                if command == None:
-                                    continue
-                                
-                                XPLMCommandOnce(command)
-                        else:
-                            command1 = self.getCommand(commandString1)
-                            if command1 == None:
-                                continue
-                                
-                            XPLMCommandOnce(command1)
-                    elif state == 2:
-                        commandString2 = definition.get('command_2')
-                        if commandString2 == None:
-                            continue
-                        
-                        if '("' in commandString2:
-                            evalCommands = eval(commandString2)
-                            for evalCommand in evalCommands:
-                                command = self.getCommand(evalCommand)
-                                if command == None:
-                                    continue
-                                
-                                XPLMCommandOnce(command)
-                        else:
-                            command2 = self.getCommand(commandString2)
-                            if command2 == None:
-                                continue
-                                
-                            XPLMCommandOnce(command2)
-                else:
-                    datarefString = definition.get('dataref')
-                    if (datarefString == None):
-                        continue
+                self.bufferA = buffer
+                bufferRange = range(16)
+            elif (line[0:2] == "B,"):
+                buffer = int(line[2:])
+                if (buffer == self.bufferB):
+                    return self.interval
                     
-                    dataref = self.getDataref(datarefString)
-                    if (dataref == None):
-                        continue
-                    
-                    type = definition.get('type')
-                    if (mode == 'loop'):
-                        if state == 0:
-                            self.lastState[i] = 0
-                            continue
-                        if self.lastState[i] == 1:
-                            continue
-                        self.lastState[i] = 1
-
-                        min = definition.get('min')
-                        max = definition.get('max')
-                        increment = definition.get('increment')
-
-                        if (type == 'int'):
-                            value = XPLMGetDatai(dataref)
-                        elif (type == 'float'):
-                            value = XPLMGetDataf(dataref)
-
-                        value = value + increment
-                        if (value > max or value < min):
-                            value = min
-                    elif (mode == 'dataref'):
-                        value = definition.get(state)
-                        if (type == 'int'):
-                            currentValue = XPLMGetDatai(dataref)
-                        elif (type == 'float'):
-                            currentValue = XPLMGetDataf(dataref)
-                        
-                        if (currentValue == value):
-                            continue
-                            
-                        
-
-                    if (type == 'int'):
-                        XPLMSetDatai(dataref, value)
-                    elif (type == 'float'):
-                        XPLMSetDataf(dataref, value)
+                self.bufferB = buffer
+                bufferRange = range(16, 20)
+            else:
+                raise ArduinoMalformedLine(line)
+            
+            offset = 0
+            for offset in bufferRange:
+                self.processArduinoResult(buffer, offset)
         except serial.SerialException:
             print "Exception: No connection found"
             return 1
         except serial.SerialTimeoutException:
             print "Exception: Connection timed out"
+            return 1
         except ArduinoMalformedLine as e:
             print 'Malformed line detected: ' + e.value
         except:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print "Unexpected error: %s" % exc_obj
-            print "Output: %s" % values
-            print "Bit: %s" % i
-            print "State: %s" % state
-            print "Value: %s" % value
+            print "Output: %s" % buffer
+            print "Bit: %s" % offset
             print "Line #: %s" % exc_tb.tb_lineno
         
         return self.interval
-        
+    
+    def processArduinoResult(self, buffer, offset):
+            if (buffer & (1 << (offset if offset < 16 else (offset - 16)))):
+                value = "1"
+            else:
+                value = "0"
+            '''
+            elif (buffer & (2 << offset)):
+                #print "setting value 2 for %s" % offset
+                #value = "2"
+            '''
+            
+            state = int(value)
+            
+            key = self.offsetToButton.get(offset)
+            if (key == None):
+                print "Cannot find button for offset :: " + key
+                return
+            
+            definition = self.definitions.get(key)
+            mode = definition.get('mode')
+            if (mode == 'command'):
+                commandString = definition.get('command')
+                if (commandString == None):
+                    return
+                    
+                command = self.getCommand(commandString)
+                if (command == None):
+                    return
+                    
+                if state == 1:
+                    XPLMCommandOnce(command)
+            elif (mode == 'command-toggle'):
+                if state == 0:
+                    commandString0 = definition.get('command_0')
+                    if commandString0 == None:
+                        return
+                    
+                    if '("' in commandString0:
+                        evalCommands = eval(commandString0)
+                        for evalCommand in evalCommands:
+                            command = self.getCommand(evalCommand)
+                            if command == None:
+                                return
+                            
+                            XPLMCommandOnce(command)
+                    else:
+                        command0 = self.getCommand(commandString0)
+                        if command0 == None:
+                            return
+                            
+                        XPLMCommandOnce(command0)
+                elif state == 1:
+                    commandString1 = definition.get('command_1')
+                    if commandString1 == None:
+                        return
+                    
+                    if '("' in commandString1:
+                        evalCommands = eval(commandString1)
+                        for evalCommand in evalCommands:
+                            command = self.getCommand(evalCommand)
+                            if command == None:
+                                return
+                            
+                            XPLMCommandOnce(command)
+                    else:
+                        command1 = self.getCommand(commandString1)
+                        if command1 == None:
+                            return
+                            
+                        XPLMCommandOnce(command1)
+                elif state == 2:
+                    commandString2 = definition.get('command_2')
+                    if commandString2 == None:
+                        return
+                    
+                    if '("' in commandString2:
+                        evalCommands = eval(commandString2)
+                        for evalCommand in evalCommands:
+                            command = self.getCommand(evalCommand)
+                            if command == None:
+                                return
+                            
+                            XPLMCommandOnce(command)
+                    else:
+                        command2 = self.getCommand(commandString2)
+                        if command2 == None:
+                            return
+                            
+                        XPLMCommandOnce(command2)
+            else:
+                datarefString = definition.get('dataref')
+                if (datarefString == None):
+                    return
+                
+                dataref = self.getDataref(datarefString)
+                if (dataref == None):
+                    return
+                
+                type = definition.get('type')
+                if (mode == 'loop'):
+                    if state == 0:
+                        self.lastState[offset] = 0
+                        return
+                    if self.lastState[offset] == 1:
+                        return
+                    self.lastState[offset] = 1
+
+                    min = definition.get('min')
+                    max = definition.get('max')
+                    increment = definition.get('increment')
+
+                    if (type == 'int'):
+                        value = XPLMGetDatai(dataref)
+                    elif (type == 'float'):
+                        value = XPLMGetDataf(dataref)
+
+                    value = value + increment
+                    if (value > max or value < min):
+                        value = min
+                elif (mode == 'dataref'):
+                    value = definition.get(state)
+                    if (type == 'int'):
+                        currentValue = XPLMGetDatai(dataref)
+                    elif (type == 'float'):
+                        currentValue = XPLMGetDataf(dataref)
+                    
+                    if (currentValue == value):
+                        return
+                        
+                    
+
+                if (type == 'int'):
+                    XPLMSetDatai(dataref, value)
+                elif (type == 'float'):
+                    XPLMSetDataf(dataref, value)
+    
     def MenuHandlerCallback(self, inMenuRef, inItemRef):
         if (inItemRef == reloadConfig):
             self.config()

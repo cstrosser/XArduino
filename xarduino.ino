@@ -38,11 +38,19 @@ Copyright (c) 2012 by Chris Strosser
 #define LED_SWITCH15 7
 #define LED_SWITCH16 6
 
-int lastValue[20];
-boolean change = true;
+#define XA_TOTAL_ROWS 2
+#define XA_LED_OFF 0
+#define XA_LED_ON 60
+
+int lastValue[XA_TOTAL_ROWS][16];
+boolean changeInRow[XA_TOTAL_ROWS];
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(57600);
+  
+  for (int x = 0; x < XA_TOTAL_ROWS; x++) {
+    changeInRow[x] = true;
+  }
   
   pinMode(BUTTON1, INPUT);
   pinMode(BUTTON2, INPUT);
@@ -79,6 +87,8 @@ void setup() {
 }
 
 void loop() {
+  unsigned int out[XA_TOTAL_ROWS] = {};
+  
   int sensorButton1 = digitalRead(BUTTON1);
   int sensorButton2 = digitalRead(BUTTON2);
   int sensorButton3 = digitalRead(BUTTON3);
@@ -122,79 +132,89 @@ void loop() {
     sensorSwitch11 = 0;
   }
   
-  unsigned int out = 0;
-  out = setBit(out, 0, sensorButton1);
-  out = setBit(out, 1, sensorButton2);
-  out = setBit(out, 2, sensorButton3);
-  out = setBit(out, 3, sensorButton4);
-  out = setBit(out, 4, sensorSwitch1);
-  out = setBit(out, 5, sensorSwitch2);
-  out = setBit(out, 6, sensorSwitch3);
-  out = setBit(out, 7, sensorSwitch4);
-  out = setBit(out, 8, sensorSwitch5);
-  out = setBit(out, 9, sensorSwitch6);
-  out = setBit(out, 10, sensorSwitch7);
-  out = setBit(out, 11, sensorSwitch8);
-  out = setBit(out, 12, sensorSwitch9);
-  out = setBit(out, 13, sensorSwitch10);
-  out = setBit(out, 14, sensorSwitch11);
-  out = setBit(out, 15, sensorSwitch12);
-  out = setBit(out, 16, sensorSwitch13);
-  out = setBit(out, 17, sensorSwitch14);
-  out = setBit(out, 18, sensorSwitch15);
-  out = setBit(out, 19, sensorSwitch16);
+  // First cluster
+  out[0] = setBitA(out[0], 0, sensorButton1);
+  out[0] = setBitA(out[0], 1, sensorButton2);
+  out[0] = setBitA(out[0], 2, sensorButton3);
+  out[0] = setBitA(out[0], 3, sensorButton4);
+  out[0] = setBitA(out[0], 4, sensorSwitch1);
+  out[0] = setBitA(out[0], 5, sensorSwitch2);
+  out[0] = setBitA(out[0], 6, sensorSwitch3);
+  out[0] = setBitA(out[0], 7, sensorSwitch4);
+  out[0] = setBitA(out[0], 8, sensorSwitch5);
+  out[0] = setBitA(out[0], 9, sensorSwitch6);
+  out[0] = setBitA(out[0], 10, sensorSwitch7);
+  out[0] = setBitA(out[0], 11, sensorSwitch8);
+  out[0] = setBitA(out[0], 12, sensorSwitch13);
+  out[0] = setBitA(out[0], 13, sensorSwitch14);
+  out[0] = setBitA(out[0], 14, sensorSwitch15);
+  out[0] = setBitA(out[0], 15, sensorSwitch16);
   
-  if (change) {
-    Serial.print('H');
-    Serial.print(",");
-    Serial.print(out);
-    Serial.println();
-    Serial.print('H');
-    Serial.print(",");
-    Serial.print(out);
-    Serial.println();
-    Serial.print('H');
-    Serial.print(",");
-    Serial.print(out);
-    Serial.println();
-    change = false;
+  // Cluster B
+  out[1] = setBitB(out[1], 0, sensorSwitch9);
+  out[1] = setBitB(out[1], 1, sensorSwitch10);
+  out[1] = setBitB(out[1], 2, sensorSwitch11);
+  out[1] = setBitB(out[1], 3, sensorSwitch12);
+  
+  for (int x = 0; x < XA_TOTAL_ROWS; x++) {
+    if (changeInRow[x]) {
+      writeRow(x, out[x]);
+      changeInRow[x] = false;
+    }
   }
   
-  int ledOff = 0;
-  int ledOn = 60;
   if (sensorSwitch9 == 1) {
-    analogWrite(LED_SWITCH9, ledOn / 2);
+    analogWrite(LED_SWITCH9, XA_LED_ON / 2);
   } else if (sensorSwitch9 == 2) {
-    analogWrite(LED_SWITCH9, ledOn);
+    analogWrite(LED_SWITCH9, XA_LED_ON);
   } else {
-    analogWrite(LED_SWITCH9, ledOff);
+    analogWrite(LED_SWITCH9, XA_LED_OFF);
   }
   if (sensorSwitch10 == 1) {
-    analogWrite(LED_SWITCH10, ledOn / 2);
+    analogWrite(LED_SWITCH10, XA_LED_ON / 2);
   } else if (sensorSwitch10 == 2) {
-    analogWrite(LED_SWITCH10, ledOn);
+    analogWrite(LED_SWITCH10, XA_LED_ON);
   } else {
-    analogWrite(LED_SWITCH10, ledOff);
+    analogWrite(LED_SWITCH10, XA_LED_OFF);
   }
   if (sensorSwitch11 == 1) {
-    analogWrite(LED_SWITCH11, ledOn / 2);
+    analogWrite(LED_SWITCH11, XA_LED_ON / 2);
   } else if (sensorSwitch11 == 2) {
-    analogWrite(LED_SWITCH11, ledOn);
+    analogWrite(LED_SWITCH11, XA_LED_ON);
   } else {
-    analogWrite(LED_SWITCH11, ledOff);
+    analogWrite(LED_SWITCH11, XA_LED_OFF);
   }
-  analogWrite(LED_SWITCH12, sensorSwitch12 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH13, sensorSwitch13 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH14, sensorSwitch14 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH15, sensorSwitch15 ? ledOn : ledOff);
-  analogWrite(LED_SWITCH16, sensorSwitch16 ? ledOn : ledOff);
+  analogWrite(LED_SWITCH12, sensorSwitch12 ? XA_LED_ON : XA_LED_OFF);
+  analogWrite(LED_SWITCH13, sensorSwitch13 ? XA_LED_ON : XA_LED_OFF);
+  analogWrite(LED_SWITCH14, sensorSwitch14 ? XA_LED_ON : XA_LED_OFF);
+  analogWrite(LED_SWITCH15, sensorSwitch15 ? XA_LED_ON : XA_LED_OFF);
+  analogWrite(LED_SWITCH16, sensorSwitch16 ? XA_LED_ON : XA_LED_OFF);
 }
 
-int setBit(unsigned int value, int bitNumber, int state)
+void writeRow(unsigned int rowNumber, unsigned int out)
 {
-  if (lastValue[bitNumber] != state) {
-    change = true;
-    lastValue[bitNumber] = state;
+  int x = 0;
+  char header = '?';
+  
+  if (rowNumber == 0) {
+    header = 'A';
+  } else if (rowNumber == 1) {
+    header = 'B';
+  }
+  
+  while (x++ < 3) {
+    Serial.print(header);
+    Serial.print(",");
+    Serial.print(out);
+    Serial.println();
+  }
+}
+
+int setBit(unsigned int value, int bitNumber, int state, unsigned int rowNumber)
+{
+  if (lastValue[rowNumber][bitNumber] != state) {
+    changeInRow[rowNumber] = true;
+    lastValue[rowNumber][bitNumber] = state;
   }
   
   if (state == 0) {
@@ -203,4 +223,14 @@ int setBit(unsigned int value, int bitNumber, int state)
     value |= (state << bitNumber);
   }
   return value;
+}
+
+int setBitA(unsigned int value, int bitNumber, int state)
+{
+  return setBit(value, bitNumber, state, 0);
+}
+
+int setBitB(unsigned int value, int bitNumber, int state)
+{
+  return setBit(value, bitNumber, state, 1);
 }
